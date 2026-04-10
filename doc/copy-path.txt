@@ -1,0 +1,211 @@
+*copy-path.txt*  Copy buffer paths to clipboard            *copy-path*
+
+==============================================================================
+CONTENTS                                            *copy-path-contents*
+
+  1. Introduction .............. |copy-path-intro|
+  2. Setup ..................... |copy-path-setup|
+  3. Configuration ............. |copy-path-config|
+  4. Commands .................. |copy-path-commands|
+  5. Keymaps ................... |copy-path-keymaps|
+  6. Health .................... |copy-path-health|
+  7. Lua API ................... |copy-path-api|
+
+==============================================================================
+1. INTRODUCTION                                     *copy-path-intro*
+
+copy-path.nvim copies the current buffer's path in various formats
+to the system clipboard. Supports relative paths, full paths, file
+names, line references, GitHub permalinks, and more.
+
+Features:
+  - 11 path kinds including GitHub permalinks
+  - Visual mode line range support
+  - File tree integration (neo-tree, nvim-tree, snacks explorer)
+  - Built-in picker (Snacks, Telescope, fzf-lua, vim.ui.select)
+  - Zero config required, LazyVim compatible
+
+==============================================================================
+2. SETUP                                            *copy-path-setup*
+
+Using lazy.nvim / LazyVim (zero config): >lua
+  return {
+    "hong4rc/copy-path.nvim",
+    event = "VeryLazy",
+    opts = {},
+  }
+<
+Manual setup: >lua
+  require("copy-path").setup({})
+<
+==============================================================================
+3. CONFIGURATION                                    *copy-path-config*
+
+Pass a table to `setup()`. All fields are optional.
+>lua
+  require("copy-path").setup({
+    -- Show vim.notify() after each copy (default: true)
+    notify = true,
+
+    -- which-key group label, or false to disable (default: "copy path")
+    which_key_group = "copy path",
+
+    -- Prefix for :CopyPath* commands, or false to disable (default: "CopyPath")
+    command_prefix = "CopyPath",
+
+    -- Keymap bindings per kind. Set to false to disable a keymap.
+    -- Line-aware kinds register in both normal and visual mode.
+    keymaps = {
+      relative    = "<leader>fy",     -- src/foo/Bar.tsx
+      full        = "<leader>fY",     -- /home/.../Bar.tsx
+      filename    = "<leader>fN",     -- Bar.tsx
+      line        = "<leader>fl",     -- Bar.tsx:42 (n,v)
+      github_line = "<leader>fG",     -- https://...#L42 (n,v)
+      line_full   = false,
+      stem        = false,
+      extension   = false,
+      dir_full    = false,
+      dir_rel     = false,
+      github      = false,
+    },
+
+    -- Keymap for the picker (all kinds in one menu)
+    picker_keymap = "<leader>fP",
+
+    -- Picker backend: "auto", "snacks", "telescope", "fzf_lua", false
+    picker = "auto",
+  })
+<
+                                                    *copy-path-notify*
+notify ~
+    Type: boolean, Default: `true`
+    Show a notification after each copy. Works with nvim-notify,
+    snacks.nvim notifier, or plain vim.notify.
+
+                                                    *copy-path-which-key-group*
+which_key_group ~
+    Type: string | false, Default: `"copy path"`
+    Label shown in which-key under the shared keymap prefix.
+    Set to `false` to skip which-key registration.
+
+                                                    *copy-path-command-prefix*
+command_prefix ~
+    Type: string | false, Default: `"CopyPath"`
+    Prefix for auto-generated user commands.
+    Set to `false` to disable all command registration.
+
+                                                    *copy-path-keymaps-config*
+keymaps ~
+    Type: table<string, string|false>
+    Map of kind name to keymap lhs. Set any value to `false`
+    to disable that binding. Unspecified keys keep defaults.
+    Line-aware kinds (line, line_full, github_line) are
+    registered in both normal and visual mode automatically.
+
+                                                    *copy-path-picker-keymap*
+picker_keymap ~
+    Type: string | false, Default: `"<leader>fP"`
+    Keymap to open the picker. Set to `false` to disable.
+
+                                                    *copy-path-picker*
+picker ~
+    Type: string | false, Default: `"auto"`
+    Picker backend. "auto" tries snacks → telescope →
+    fzf-lua → vim.ui.select. Set to `false` to disable.
+
+==============================================================================
+4. COMMANDS                                         *copy-path-commands*
+
+All commands are registered when `command_prefix` is set (default).
+
+  :CopyPath           Copy relative path        `src/foo/Bar.tsx`
+  :CopyPathFull       Copy full path            `/home/.../Bar.tsx`
+  :CopyPathName       Copy file name            `Bar.tsx`
+  :CopyPathStem       Copy file stem            `Bar`
+  :CopyPathExt        Copy extension            `tsx`
+  :CopyPathDir        Copy full directory       `/home/.../src/foo`
+  :CopyPathDirRel     Copy relative directory   `src/foo`
+  :CopyPathLine       Copy relative + line      `src/foo/Bar.tsx:42`
+  :CopyPathLineFull   Copy full + line          `/home/.../Bar.tsx:42`
+  :CopyPathGitHub     Copy GitHub permalink     `https://github.com/.../Bar.tsx`
+  :CopyPathGitHubLine Copy GitHub + line        `https://github.com/.../Bar.tsx#L42`
+
+Custom prefix example: `command_prefix = "Yank"` creates
+`:Yank`, `:YankFull`, `:YankName`, etc.
+
+==============================================================================
+5. KEYMAPS                                          *copy-path-keymaps*
+
+Default keymaps (normal mode). All under LazyVim `<leader>f` group:
+
+  <leader>fy    Copy relative path            :CopyPath           (n)
+  <leader>fY    Copy full path                :CopyPathFull       (n)
+  <leader>fN    Copy file name                :CopyPathName       (n)
+  <leader>fl    Copy relative + line          :CopyPathLine       (n, v)
+  <leader>fG    Copy GitHub permalink + line  :CopyPathGitHubLine (n, v)
+  <leader>fP    Open picker (all kinds)                           (n)
+
+Line-aware keymaps (line, line_full, github_line) work in visual
+mode: the selected range is used instead of the cursor line.
+  Normal:  `src/foo/Bar.tsx:42`
+  Visual:  `src/foo/Bar.tsx:10-25`
+
+Extra kinds available (disabled by default): >lua
+  keymaps = {
+    stem        = "<leader>fs",   -- file stem
+    extension   = "<leader>fx",   -- extension
+    dir_full    = "<leader>fD",   -- full dir
+    dir_rel     = "<leader>fd",   -- relative dir
+    line_full   = "<leader>fL",   -- full + line
+    github      = "<leader>fg",   -- GitHub URL (no line)
+  }
+<
+                                                    *copy-path-tree*
+File tree support ~
+    When the cursor is in a file tree buffer (neo-tree, nvim-tree,
+    snacks explorer), all copy operations use the selected node's
+    path instead of the current buffer path. Directory nodes are
+    ignored (falls back to buffer path).
+
+==============================================================================
+6. HEALTH                                           *copy-path-health*
+
+Run `:checkhealth copy-path` to verify:
+  - Neovim >= 0.9
+  - Clipboard provider is available
+  - which-key.nvim detected (optional)
+  - nvim-notify detected (optional)
+
+==============================================================================
+7. LUA API                                          *copy-path-api*
+
+require("copy-path").setup({opts})               *copy-path.setup()*
+    Initialize the plugin. Call once. Second call is a no-op.
+    {opts} is optional; omit for defaults.
+
+require("copy-path").copy({kind})                *copy-path.copy()*
+    Copy the value for {kind} to system clipboard (`+` and `"`
+    registers). Shows "Copied: <value>" notification if enabled.
+    Warns if no file in current buffer. Errors on unknown kind.
+    Kinds: "relative", "full", "filename", "stem", "extension",
+           "dir_full", "dir_rel", "line", "line_full",
+           "github", "github_line"
+
+require("copy-path").get({kind})                 *copy-path.get()*
+    Return the resolved string for {kind} without copying.
+    Returns "" if buffer has no file. Errors on unknown kind.
+
+require("copy-path").pick()                      *copy-path.pick()*
+    Open a picker showing all kinds with their current values.
+    Supports Snacks, Telescope, fzf-lua, and vim.ui.select.
+
+require("copy-path").resolvers()                 *copy-path.resolvers()*
+    Return the resolver table. Each entry has `fn` (function
+    returning string) and `label` (string). Useful for building
+    custom pickers (Snacks, Telescope, etc.): >lua
+      local items = {}
+      for kind, r in pairs(require("copy-path").resolvers()) do
+        table.insert(items, { kind = kind, value = r.fn(), label = r.label })
+      end
+<
+ vim:tw=78:ts=8:ft=help:norl:
