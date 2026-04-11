@@ -20,29 +20,5 @@ function M.register(keymaps, copy_fn, resolvers, line_kinds)
   end
 end
 
-function M.prefixes(keymaps)
-  local seen = {}
-  for _, lhs in pairs(keymaps) do
-    if lhs and lhs ~= false then
-      local prefix = lhs:match("^(.+).$")
-      if prefix then
-        seen[prefix] = true
-      end
-    end
-  end
-  return vim.tbl_keys(seen)
-end
-
-function M.register_whichkey(group, keymaps)
-  if not group then
-    return
-  end
-  local ok = pcall(require, "which-key")
-  if not ok then
-    return
-  end
-  -- Don't override the shared <leader>f group label (LazyVim uses "file/find").
-  -- Individual keymap descriptions are already set via `desc` in register().
-end
 
 return M

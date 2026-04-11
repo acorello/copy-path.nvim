@@ -131,7 +131,6 @@ function M.setup(opts)
 
   commands.register(cfg.command_prefix, M.copy)
   keymaps_mod.register(cfg.keymaps, M.copy, resolvers, line_kinds)
-  keymaps_mod.register_whichkey(cfg.which_key_group, cfg.keymaps)
 
   if cfg.picker_keymap then
     vim.keymap.set("n", cfg.picker_keymap, function()
