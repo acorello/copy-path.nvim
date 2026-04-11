@@ -1,6 +1,10 @@
 # copy-path.nvim
 
-Copy current buffer path variants to clipboard with configurable keymaps and user commands.
+[![CI](https://github.com/hong4rc/copy-path.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/hong4rc/copy-path.nvim/actions/workflows/ci.yml)
+[![License: GPL-2.0](https://img.shields.io/github/license/hong4rc/copy-path.nvim)](LICENSE)
+[![Neovim](https://img.shields.io/badge/Neovim-0.9+-blueviolet?logo=neovim&logoColor=white)](https://neovim.io)
+
+Copy buffer paths to clipboard — 11 path kinds, GitHub permalinks, file tree support, built-in picker. Zero config, LazyVim compatible.
 
 ![demo](https://raw.githubusercontent.com/hong4rc/copy-path.nvim/demo/demo.gif)
 
