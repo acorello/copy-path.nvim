@@ -1,5 +1,15 @@
 local M = {}
 
+local tree_filetypes = {
+  ["neo-tree"] = true,
+  ["NvimTree"] = true,
+  ["snacks_picker_list"] = true,
+}
+
+function M.is_tree()
+  return tree_filetypes[vim.bo.filetype] or false
+end
+
 function M.get_path()
   local ft = vim.bo.filetype
 

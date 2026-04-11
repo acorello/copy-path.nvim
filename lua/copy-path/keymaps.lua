@@ -9,11 +9,11 @@ function M.register(keymaps, copy_fn, resolvers, line_kinds)
       else
         vim.keymap.set("n", lhs, function()
           copy_fn(kind)
-        end, { desc = r.label })
+        end, { desc = "Copy " .. r.label })
         if line_kinds[kind] then
           vim.keymap.set("v", lhs, function()
             copy_fn(kind)
-          end, { desc = r.label .. " (range)" })
+          end, { desc = "Copy " .. r.label .. " (range)" })
         end
       end
     end
@@ -37,13 +37,12 @@ function M.register_whichkey(group, keymaps)
   if not group then
     return
   end
-  local ok, wk = pcall(require, "which-key")
+  local ok = pcall(require, "which-key")
   if not ok then
     return
   end
-  for _, prefix in ipairs(M.prefixes(keymaps)) do
-    wk.add({ { prefix, group = group } })
-  end
+  -- Don't override the shared <leader>f group label (LazyVim uses "file/find").
+  -- Individual keymap descriptions are already set via `desc` in register().
 end
 
 return M

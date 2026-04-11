@@ -22,7 +22,6 @@ end
 function M.open(resolvers, on_select, backend)
   local items = build_items(resolvers)
   if #items == 0 then
-    vim.notify("copy-path: no paths available", vim.log.levels.WARN)
     return
   end
 
@@ -41,7 +40,11 @@ function M.open(resolvers, on_select, backend)
         return { text = item.display, item = item }
       end, items),
       format = function(entry)
-        return entry.text
+        local item = entry.item
+        return {
+          { item.label .. ": ", "Special" },
+          { item.value },
+        }
       end,
       confirm = function(picker_inst, entry)
         picker_inst:close()

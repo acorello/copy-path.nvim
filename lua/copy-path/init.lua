@@ -68,6 +68,10 @@ local function get_path(expand_str)
     end
     return vim.fn.fnamemodify(tree_path, ":.")
   end
+  -- In a tree buffer but no file selected — don't fall back to buffer name
+  if tree.is_tree() then
+    return ""
+  end
   return vim.fn.expand(expand_str)
 end
 
@@ -79,24 +83,34 @@ local resolvers = {
   extension = { fn = function() return get_path("%:e") end, label = "Extension" },
   dir_full = { fn = function() return get_path("%:p:h") end, label = "Full dir" },
   dir_rel = { fn = function() return get_path("%:.:h") end, label = "Relative dir" },
-  line = { fn = function() return get_path("%:.") .. ":" .. line_ref() end, label = "Relative + line" },
-  line_full = { fn = function() return get_path("%:p") .. ":" .. line_ref() end, label = "Full + line" },
-  github = { fn = function() return git.permalink(get_path("%:p")) end, label = "GitHub URL" },
-  github_line = {
-    fn = function() return git.permalink(get_path("%:p")) .. github_line_fragment() end,
-    label = "GitHub + line",
-  },
+  line = { fn = function()
+    local p = get_path("%:.")
+    return p ~= "" and (p .. ":" .. line_ref()) or ""
+  end, label = "Relative + line" },
+  line_full = { fn = function()
+    local p = get_path("%:p")
+    return p ~= "" and (p .. ":" .. line_ref()) or ""
+  end, label = "Full + line" },
+  github = { fn = function()
+    local p = get_path("%:p")
+    return p ~= "" and git.permalink(p) or ""
+  end, label = "GitHub URL" },
+  github_line = { fn = function()
+    local p = get_path("%:p")
+    if p == "" then return "" end
+    local url = git.permalink(p)
+    return url ~= "" and (url .. github_line_fragment()) or ""
+  end, label = "GitHub + line" },
 }
 
 local function _copy(value, label)
   if value == nil or value == "" then
-    vim.notify("copy-path: no file in current buffer", vim.log.levels.WARN)
     return
   end
   vim.fn.setreg("+", value)
   vim.fn.setreg('"', value)
   if cfg.notify then
-    vim.notify("Copied: " .. value, vim.log.levels.INFO, { title = label })
+    vim.notify(label .. ": " .. value, vim.log.levels.INFO, { title = "Copied" })
   end
 end
 
