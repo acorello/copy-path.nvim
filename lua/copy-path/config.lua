@@ -2,7 +2,8 @@ local M = {}
 
 M.defaults = {
   notify = true,
-  which_key_group = "copy path",
+  which_key_group = false,
+  root = false,
   command_prefix = "CopyPath",
   keymaps = {
     relative = "<leader>fy",
@@ -35,6 +36,9 @@ function M.validate(cfg)
   end
   if cfg.command_prefix ~= false and type(cfg.command_prefix) ~= "string" then
     table.insert(errors, "command_prefix must be string or false")
+  end
+  if cfg.root ~= false and type(cfg.root) ~= "function" then
+    table.insert(errors, "root must be a function or false")
   end
   if type(cfg.keymaps) ~= "table" then
     table.insert(errors, "keymaps must be a table")

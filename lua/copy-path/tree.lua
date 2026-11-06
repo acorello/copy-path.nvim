@@ -39,9 +39,19 @@ function M.get_path()
   if ft == "snacks_picker_list" then
     local ok, picker = pcall(require, "snacks.picker")
     if ok then
-      local current = picker.get and picker.get()
-      if current and current.item and current.item.file then
-        return current.item.file
+      for _, instance in ipairs(picker.get()) do
+        if instance:is_focused() then
+          local item = instance:current()
+          if item and item.file then
+            local path = item.file
+            if not path:match("^/") then
+              path = (item.cwd or instance:cwd()) .. "/" .. path
+            end
+            if vim.fn.isdirectory(path) == 0 then
+              return vim.fn.fnamemodify(path, ":p")
+            end
+          end
+        end
       end
     end
     return nil

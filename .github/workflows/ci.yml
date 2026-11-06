@@ -30,6 +30,13 @@ jobs:
             https://github.com/nvim-lua/plenary.nvim \
             ~/.local/share/nvim/lazy/plenary.nvim
 
+      - name: Install reviewed Snacks integration fixture
+        run: |
+          git clone https://github.com/folke/snacks.nvim \
+            ~/.local/share/nvim/lazy/snacks.nvim
+          git -C ~/.local/share/nvim/lazy/snacks.nvim checkout \
+            882c996cf28183f4d63640de0b4c02ec886d01f2
+
       - name: Run tests
         timeout-minutes: 5
         run: |

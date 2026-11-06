@@ -1,10 +1,13 @@
 # copy-path.nvim
 
+Maintained fork: [acorello/copy-path.nvim](https://github.com/acorello/copy-path.nvim),
+based on [hong4rc/copy-path.nvim](https://github.com/hong4rc/copy-path.nvim).
+
 [![CI](https://github.com/hong4rc/copy-path.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/hong4rc/copy-path.nvim/actions/workflows/ci.yml)
 [![License: GPL-2.0](https://img.shields.io/github/license/hong4rc/copy-path.nvim)](LICENSE)
 [![Neovim](https://img.shields.io/badge/Neovim-0.9+-blueviolet?logo=neovim&logoColor=white)](https://neovim.io)
 
-Copy buffer paths to clipboard — 11 path kinds, GitHub permalinks, file tree support, built-in picker. Zero config, LazyVim compatible.
+Copy buffer paths to clipboard – 11 path kinds, GitHub permalinks, file tree support, built-in picker. Zero config, LazyVim compatible.
 
 ![demo](https://raw.githubusercontent.com/hong4rc/copy-path.nvim/demo/demo.gif)
 
@@ -12,13 +15,13 @@ Copy buffer paths to clipboard — 11 path kinds, GitHub permalinks, file tree s
 
 - **11 path kinds**: relative, full, filename, stem, extension, directory (full/relative), line reference (relative/full), GitHub permalink (with/without line)
 - **Zero config** — works out of the box with sensible defaults
-- **LazyVim compatible** — default keymaps avoid all LazyVim conflicts
+- **LazyVim compatible** – disable individual default keymaps to avoid local conflicts
 - **`:CopyPath*` commands** — 11 user commands registered automatically
 - **File tree support** — works from neo-tree, nvim-tree, and snacks explorer
 - **Built-in picker** — Snacks, Telescope, fzf-lua, or `vim.ui.select` fallback
 - **Visual mode** — line-aware kinds support visual selection ranges
-- **GitHub permalinks** — copy shareable links with branch/commit and line numbers
-- **which-key integration** — group labels registered when which-key is available
+- **GitHub permalinks** – copy immutable commit links with optional line numbers
+- **which-key integration** – opt-in shared-prefix group labels
 - **Notification support** — works with nvim-notify, snacks.nvim notifier, or plain `vim.notify`
 - **Health check** — `:checkhealth copy-path`
 
@@ -35,7 +38,7 @@ Copy buffer paths to clipboard — 11 path kinds, GitHub permalinks, file tree s
 ```lua
 -- lua/plugins/copy-path.lua
 return {
-  "hong4rc/copy-path.nvim",
+  "acorello/copy-path.nvim",
   event = "VeryLazy",
   opts = {},
 }
@@ -47,14 +50,18 @@ All fields are optional. Unspecified values use defaults.
 
 ```lua
 return {
-  "hong4rc/copy-path.nvim",
+  "acorello/copy-path.nvim",
   event = "VeryLazy",
   opts = {
     -- Show vim.notify() after each copy (default: true)
     notify = true,
 
-    -- which-key group label, or false to disable (default: "copy path")
-    which_key_group = "copy path",
+    -- Opt-in which-key label for a shared mapping prefix (default: false).
+    -- This renames that prefix's group; leave disabled for LazyVim's file group.
+    which_key_group = false,
+
+    -- Optional function(path, bufnr) returning a project root, or nil for detection.
+    root = false,
 
     -- Prefix for :CopyPath* commands, or false to disable (default: "CopyPath")
     command_prefix = "CopyPath",
@@ -111,6 +118,40 @@ opts = { command_prefix = "Yank" }
 -- Creates :Yank, :YankFull, :YankName, :YankGitHub, etc.
 ```
 
+## Path and Git reference behaviour
+
+Relative paths use `root(path, bufnr)` when configured, otherwise the selected
+file's Git root, otherwise the nearest ancestor containing `package.json`,
+`pyproject.toml`, `go.mod` or `Cargo.toml`. Without a project root, paths are
+relative to cwd when contained there, and absolute otherwise. A root must contain
+the selected file; unrelated roots fall back to the same cwd/absolute policy.
+An unnamed buffer or an explorer directory selection produces no copy.
+
+LazyVim users can opt into its LSP-aware root policy without making it a plugin
+dependency. In a lazy.nvim spec's `opts`:
+
+```lua
+root = function(path, bufnr)
+  if vim.api.nvim_buf_get_name(bufnr) == path then
+    return LazyVim.root.get({ buf = bufnr })
+  end
+  -- Explorer selections use the plugin's file-based detection.
+end,
+```
+
+Git metadata is resolved afresh from the selected file's repository, independent
+of cwd. URLs use `origin` and the current commit SHA, including in detached HEAD;
+HTTP(S) credentials are removed and file paths are percent-encoded. HTTPS,
+HTTP, `git@host:path` and `ssh://user@host/path` remotes are supported. Other
+remote formats, repositories without a commit/origin, and non-repository files
+produce no URL. URLs use GitHub-style `/blob/` paths; other hosts may differ.
+Links refer to committed content, not unsaved or uncommitted changes.
+
+Copying writes only the `+` register; it does not explicitly overwrite the
+unnamed register. Neovim's `clipboard` option still controls normal register
+aliasing. Picker confirmation copies the value displayed when opened, even if
+the buffer or selection subsequently changes.
+
 ## Commands
 
 | Command | What it copies | Example |
@@ -124,8 +165,13 @@ opts = { command_prefix = "Yank" }
 | `:CopyPathDirRel` | Relative directory | `src/foo` |
 | `:CopyPathLine` | Relative + line | `src/foo/Bar.tsx:42` |
 | `:CopyPathLineFull` | Full + line | `/home/user/project/src/foo/Bar.tsx:42` |
-| `:CopyPathGitHub` | GitHub permalink | `https://github.com/user/repo/blob/main/src/foo/Bar.tsx` |
-| `:CopyPathGitHubLine` | GitHub + line | `https://github.com/user/repo/blob/main/src/foo/Bar.tsx#L42` |
+| `:CopyPathGitHub` | GitHub permalink | `https://github.com/user/repo/blob/<commit-sha>/src/foo/Bar.tsx` |
+| `:CopyPathGitHubLine` | GitHub + line | `https://github.com/user/repo/blob/<commit-sha>/src/foo/Bar.tsx#L42` |
+
+Line-aware commands accept Ex addresses: `:42CopyPathLine`,
+`:10,25CopyPathLineFull` and `:'<,'>CopyPathGitHubLine`. Without an explicit
+address they use the current cursor or live visual selection. Single-line
+selections use `:42` or `#L42`; ranges use `:10-25` or `#L10-L25`.
 
 ## Keymaps
 
@@ -168,7 +214,7 @@ Supported backends (auto-detected in order):
 :checkhealth copy-path
 ```
 
-Verifies Neovim version, clipboard provider, and optional dependencies (which-key, nvim-notify).
+See `:checkhealth copy-path` for environment checks.
 
 ## Lua API
 
@@ -197,6 +243,10 @@ end
 # Run tests
 nvim --headless -u tests/minimal_init.lua \
   -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+
+# The optional Snacks integration suite uses an installed
+# ~/.local/share/nvim/lazy/snacks.nvim and is skipped when absent.
+# Clipboard writes are intercepted by regression tests; no system clipboard access.
 
 # Lint
 luacheck lua/

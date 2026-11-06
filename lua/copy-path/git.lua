@@ -1,60 +1,56 @@
 local M = {}
 
-local _cache = {}
-
-local function git_cmd(args)
-  local result = vim.fn.systemlist(args)
-  if vim.v.shell_error ~= 0 or #result == 0 then
-    return nil
+local function git_cmd(path, args)
+  local cmd = { "git", "-C", path and vim.fn.fnamemodify(path, ":p:h") or vim.fn.getcwd() }
+  vim.list_extend(cmd, args)
+  local result = vim.fn.systemlist(cmd)
+  if vim.v.shell_error == 0 and #result > 0 then
+    return result[1]
   end
-  return vim.trim(result[1])
 end
 
-function M.root()
-  if _cache.root then
-    return _cache.root
-  end
-  _cache.root = git_cmd({ "git", "rev-parse", "--show-toplevel" })
-  return _cache.root
+function M.root(path)
+  return git_cmd(path, { "rev-parse", "--show-toplevel" })
 end
 
-function M.ref()
-  return git_cmd({ "git", "rev-parse", "--abbrev-ref", "HEAD" })
-    or git_cmd({ "git", "rev-parse", "HEAD" })
+function M.ref(path)
+  return git_cmd(path, { "rev-parse", "--verify", "HEAD" })
 end
 
-function M.remote_url()
-  if _cache.remote_url then
-    return _cache.remote_url
-  end
-  local raw = git_cmd({ "git", "remote", "get-url", "origin" })
+function M.remote_url(path)
+  local raw = git_cmd(path, { "remote", "get-url", "origin" })
   if not raw then
     return nil
   end
-
-  local url = raw
-  url = url:gsub("^git@([^:]+):", "https://%1/")
-  url = url:gsub("%.git$", "")
-  url = url:gsub("/$", "")
-
-  _cache.remote_url = url
-  return url
+  local url = raw:gsub("^git@([^:]+):", "https://%1/")
+  url = url:gsub("^ssh://[^@/]+@([^/]+)/", "https://%1/")
+  -- Remove all userinfo before the authority is ever returned to callers.
+  url = url:gsub("^(https?://)[^/]*@", "%1")
+  if not url:match("^https?://") then
+    return nil
+  end
+  return (url:gsub("/$", ""):gsub("%.git$", ""))
 end
 
 function M.permalink(abs_path)
-  local root = M.root()
-  local remote = M.remote_url()
-  local ref = M.ref()
-  if not root or not remote or not ref then
+  local path = require("copy-path.path")
+  abs_path = path.absolute(abs_path)
+  local root = M.root(abs_path)
+  local rel = root and path.within(abs_path, root)
+  if not rel then
     return ""
   end
-
-  local rel = abs_path:sub(#root + 2)
-  return remote .. "/blob/" .. ref .. "/" .. rel
+  local remote, ref = M.remote_url(abs_path), M.ref(abs_path)
+  if not remote or not ref then
+    return ""
+  end
+  local escaped = rel:gsub("[^%w%-%._~/]", function(char)
+    return string.format("%%%02X", string.byte(char))
+  end)
+  return remote .. "/blob/" .. ref .. "/" .. escaped
 end
 
-function M.clear_cache()
-  _cache = {}
-end
+-- Compatibility with earlier releases; metadata is no longer cached.
+function M.clear_cache() end
 
 return M

@@ -48,7 +48,9 @@ function M.open(resolvers, on_select, backend)
       end,
       confirm = function(picker_inst, entry)
         picker_inst:close()
-        on_select(entry.item.kind)
+        if entry then
+          on_select(entry.item.kind, entry.item.value, entry.item.label)
+        end
       end,
     })
     return true
@@ -78,7 +80,9 @@ function M.open(resolvers, on_select, backend)
           actions.select_default:replace(function()
             local entry = action_state.get_selected_entry()
             actions.close(prompt_bufnr)
-            on_select(entry.value.kind)
+            if entry then
+              on_select(entry.value.kind, entry.value.value, entry.value.label)
+            end
           end)
           return true
         end,
@@ -101,7 +105,7 @@ function M.open(resolvers, on_select, backend)
         ["default"] = function(selected)
           for _, item in ipairs(items) do
             if item.display == selected[1] then
-              on_select(item.kind)
+              on_select(item.kind, item.value, item.label)
               break
             end
           end
@@ -121,7 +125,7 @@ function M.open(resolvers, on_select, backend)
       end
       for _, item in ipairs(items) do
         if item.display == choice then
-          on_select(item.kind)
+          on_select(item.kind, item.value, item.label)
           break
         end
       end

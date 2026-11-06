@@ -30,7 +30,7 @@ Features:
 
 Using lazy.nvim / LazyVim (zero config): >lua
   return {
-    "hong4rc/copy-path.nvim",
+    "acorello/copy-path.nvim",
     event = "VeryLazy",
     opts = {},
   }
@@ -47,8 +47,11 @@ Pass a table to `setup()`. All fields are optional.
     -- Show vim.notify() after each copy (default: true)
     notify = true,
 
-    -- which-key group label, or false to disable (default: "copy path")
-    which_key_group = "copy path",
+    -- Optional shared-prefix which-key group label (default: false)
+    which_key_group = false,
+
+    -- Optional function(path, bufnr) returning a root, or nil for detection
+    root = false,
 
     -- Prefix for :CopyPath* commands, or false to disable (default: "CopyPath")
     command_prefix = "CopyPath",
@@ -84,9 +87,11 @@ notify ~
 
                                                     *copy-path-which-key-group*
 which_key_group ~
-    Type: string | false, Default: `"copy path"`
-    Label shown in which-key under the shared keymap prefix.
-    Set to `false` to skip which-key registration.
+    Type: string | false, Default: `false`
+    Opt-in label for a common parent prefix of all enabled kind keymaps.
+    Different parent prefixes skip registration. Requires which-key's add API.
+    Enabling this renames the shared group; leave disabled for LazyVim's file
+    group. Picker keymaps are not included.
 
                                                     *copy-path-command-prefix*
 command_prefix ~
@@ -116,6 +121,22 @@ picker ~
 ==============================================================================
 4. COMMANDS                                         *copy-path-commands*
 
+Relative paths use root(path, bufnr), when configured, then the selected file's
+Git root, then the nearest package.json, pyproject.toml, go.mod or Cargo.toml.
+Without a root containing the file, paths are cwd-relative when contained there,
+otherwise absolute. root must be false (default) or a function returning an
+absolute directory or nil for automatic detection. For LazyVim integration,
+return LazyVim.root.get({ buf = bufnr }) when path equals the buffer name; return
+nil for explorer selections to use file-based detection. No LazyVim dependency
+is required by this plugin.
+
+Git URLs resolve origin and the commit SHA in the selected file's repository
+on each request, independent of cwd. HTTP(S) userinfo is removed before return,
+copying or notification; file paths are percent-encoded. Supported remotes:
+HTTP(S), git@host:path and ssh://user@host/path. Unsupported remotes or missing
+commits/origin produce no URL. URLs use GitHub-style /blob/ paths and refer to
+committed content, not uncommitted or unsaved edits. Other hosts may differ.
+
 All commands are registered when `command_prefix` is set (default).
 
   :CopyPath           Copy relative path        `src/foo/Bar.tsx`
@@ -129,6 +150,11 @@ All commands are registered when `command_prefix` is set (default).
   :CopyPathLineFull   Copy full + line          `/home/.../Bar.tsx:42`
   :CopyPathGitHub     Copy GitHub permalink     `https://github.com/.../Bar.tsx`
   :CopyPathGitHubLine Copy GitHub + line        `https://github.com/.../Bar.tsx#L42`
+
+Line-aware commands accept Ex addresses: :42CopyPathLine,
+:10,25CopyPathLineFull and :'<,'>CopyPathGitHubLine. Without addresses they use
+the cursor or live visual selection. Single-line ranges have one line number;
+reverse live selections are normalised to ascending order.
 
 Custom prefix example: `command_prefix = "Yank"` creates
 `:Yank`, `:YankFull`, `:YankName`, etc.
@@ -165,7 +191,7 @@ File tree support ~
     When the cursor is in a file tree buffer (neo-tree, nvim-tree,
     snacks explorer), all copy operations use the selected node's
     path instead of the current buffer path. Directory nodes are
-    ignored (falls back to buffer path).
+    ignored (no copy). Other Snacks file pickers also use their current item.
 
 ==============================================================================
 6. HEALTH                                           *copy-path-health*
@@ -183,10 +209,12 @@ require("copy-path").setup({opts})               *copy-path.setup()*
     Initialize the plugin. Call once. Second call is a no-op.
     {opts} is optional; omit for defaults.
 
-require("copy-path").copy({kind})                *copy-path.copy()*
-    Copy the value for {kind} to system clipboard (`+` and `"`
-    registers). Shows "Copied: <value>" notification if enabled.
-    Warns if no file in current buffer. Errors on unknown kind.
+require("copy-path").copy({kind}, {range})       *copy-path.copy()*
+    Copy the value for {kind} to the `+` register. Does not explicitly write
+    the unnamed register; normal 'clipboard' aliasing still applies.
+    Shows a notification if enabled. No copy if no file is selected.
+    Errors on unknown kind. An optional second argument {first, last} supplies
+    explicit line endpoints for line-aware kinds.
     Kinds: "relative", "full", "filename", "stem", "extension",
            "dir_full", "dir_rel", "line", "line_full",
            "github", "github_line"
@@ -197,6 +225,7 @@ require("copy-path").get({kind})                 *copy-path.get()*
 
 require("copy-path").pick()                      *copy-path.pick()*
     Open a picker showing all kinds with their current values.
+    Confirmation copies the captured value, not a recomputed path.
     Supports Snacks, Telescope, fzf-lua, and vim.ui.select.
 
 require("copy-path").resolvers()                 *copy-path.resolvers()*
